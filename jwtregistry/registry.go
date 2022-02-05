@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/jwt"
 )
 
 // Context holds a named JWT signer, validator, and other configuration
@@ -36,6 +37,7 @@ type Context struct {
 	keyset                *jwk.Set
 	signingKeyName        string
 	signingValidityPeriod time.Duration
+	clock                 jwt.Clock
 }
 
 // Option specifies non-default overrides at
@@ -65,6 +67,7 @@ func Register(purpose string, issuer string, opts ...Option) error {
 	r := &Context{
 		purpose: purpose,
 		issuer:  issuer,
+		clock:   &TimeClock{},
 	}
 
 	for _, opt := range opts {
