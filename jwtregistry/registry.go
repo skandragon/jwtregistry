@@ -134,3 +134,12 @@ func WithSigningValidityPeriod(d time.Duration) Option {
 		jr.signingValidityPeriod = d
 	}
 }
+
+// WithClock sets the clock to be used when signing and validating.
+// This is mosly useful in test cases.  If not provided, the current
+// time will be used.
+func WithClock(clock jwt.Clock) Option {
+	return func(jr *Context) {
+		jr.clock = clock
+	}
+}
