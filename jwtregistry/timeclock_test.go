@@ -21,6 +21,10 @@ import (
 	"time"
 )
 
+func timeEqualsEpislion(want time.Time, got time.Time, fudge time.Duration) bool {
+	return got.Unix() >= want.Add(-fudge).Unix() && got.Unix() <= want.Add(fudge).Unix()
+}
+
 func TestTimeClock_Now(t *testing.T) {
 	type fields struct {
 		NowTime int64
@@ -47,7 +51,7 @@ func TestTimeClock_Now(t *testing.T) {
 				NowTime: tt.fields.NowTime,
 			}
 			got := tc.Now()
-			if got.Unix() < tt.want.Add(-1*time.Second).Unix() || got.Unix() > tt.want.Add(1*time.Second).Unix() {
+			if !timeEqualsEpislion(tt.want, got, 1*time.Second) {
 				t.Errorf("TimeClock.Now() = %v, want %v", got, tt.want)
 			}
 		})
