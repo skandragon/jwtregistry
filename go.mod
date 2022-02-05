@@ -1,4 +1,4 @@
-module github.com/skandragon/gojwtregistry
+module github.com/skandragon/jwtregistry
 
 go 1.17
 
