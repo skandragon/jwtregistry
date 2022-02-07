@@ -106,6 +106,13 @@ func Clear() {
 	}
 }
 
+func nowFromClock(clock jwt.Clock) time.Time {
+	if clock == nil {
+		return time.Now()
+	}
+	return clock.Now()
+}
+
 // Sign will create a new JWT based on the map of input data,
 // the Context's configuration, and current signing key.  If the
 // signing key name is not set, an error will be returned.
@@ -139,18 +146,11 @@ func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []b
 		return
 	}
 
-	var now time.Time
-	if clock != nil {
-		now = clock.Now()
-	} else {
-		now = time.Now()
-	}
-
+	now := nowFromClock(clock)
 	builder := &jwt.Builder{}
 	builder = builder.
 		Claim(jwt.IssuerKey, c.issuer).
 		Claim(jwt.IssuedAtKey, now)
-
 	if c.signingValidityPeriod > 0 {
 		builder = builder.Claim(jwt.ExpirationKey, now.Add(c.signingValidityPeriod))
 	}
@@ -166,7 +166,7 @@ func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []b
 		}
 	}
 
-	signed, err = jwt.Sign(t, jwa.HS256, key)
+	signed, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key)
 	return
 }
 

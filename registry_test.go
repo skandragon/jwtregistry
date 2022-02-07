@@ -180,6 +180,7 @@ func setupKeys(t *testing.T) {
 
 func TestSign(t *testing.T) {
 	setupKeys(t)
+	t.Parallel()
 	type args struct {
 		purpose string
 		claims  map[string]string
@@ -274,6 +275,7 @@ func TestSign(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	setupKeys(t)
+	t.Parallel()
 	type args struct {
 		purpose string
 		signed  []byte
@@ -359,6 +361,32 @@ func TestValidate(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, gotClaims, tt.wantClaims)
+		})
+	}
+}
+
+func timeEqualsEpislion(want time.Time, got time.Time, fudge time.Duration) bool {
+	return got.Unix() >= want.Add(-fudge).Unix() && got.Unix() <= want.Add(fudge).Unix()
+}
+
+func Test_nowFromClock(t *testing.T) {
+	type args struct {
+		clock jwt.Clock
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Time
+	}{
+		{"nil", args{nil}, time.Now()},
+		{"set at 50", args{&TimeClock{50}}, time.Unix(50, 0)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := nowFromClock(tt.args.clock)
+			if !timeEqualsEpislion(tt.want, got, 1*time.Second) {
+				t.Errorf("nowFromClock() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
