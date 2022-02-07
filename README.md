@@ -1,5 +1,7 @@
 # Go jwtregistry
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/skandragon/jwtregistry)](https://goreportcard.com/report/github.com/skandragon/jwtregistry)
+
 A hopefully simple JWT signing and validating registry that can be
 used globally, referring to signing and validating contexts by named
 purpose.
