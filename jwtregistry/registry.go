@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 )
@@ -34,7 +35,7 @@ import (
 type Context struct {
 	purpose               string
 	issuer                string
-	keyset                *jwk.Set
+	keyset                jwk.Set
 	signingKeyName        string
 	signingValidityPeriod time.Duration
 	clock                 jwt.Clock
@@ -47,7 +48,21 @@ type Option func(*Context)
 var (
 	registry map[string]*Context
 	lock     sync.Mutex
+	oncelock sync.Once
 )
+
+func findContext(name string) (c *Context, found bool) {
+	lock.Lock()
+	defer lock.Unlock()
+	c, found = registry[name]
+	return
+}
+
+func initOnce() {
+	oncelock.Do(func() {
+		registry = make(map[string]*Context)
+	})
+}
 
 // Register creates a new Context, and stores it in the globally available
 // registry under the provided named purpose.
@@ -56,12 +71,13 @@ var (
 // used in these Options should be treated as immutable, as they will
 // be accessed by multiple threads.
 func Register(purpose string, issuer string, opts ...Option) error {
+	initOnce()
 	if len(purpose) == 0 {
-		return fmt.Errorf("Purpose must be provided")
+		return fmt.Errorf("purpose must be provided")
 	}
 
 	if len(issuer) == 0 {
-		return fmt.Errorf("Issuer must be provided")
+		return fmt.Errorf("issuer must be provided")
 	}
 
 	r := &Context{
@@ -96,22 +112,83 @@ func Delete(purpose string) {
 // expirtation ("exp") will also be added to the claims.
 //
 // Additional claims provided will also be added prior to signing.
-func Sign(purpose string, claims map[string]string) (string, error) {
-	return "", fmt.Errorf("Not yet implemented")
+func Sign(purpose string, claims map[string]string) (signed []byte, err error) {
+	initOnce()
+	c, found := findContext(purpose)
+	if !found {
+		err = fmt.Errorf("context not found in registry")
+		return
+	}
+
+	if len(c.signingKeyName) == 0 {
+		err = fmt.Errorf("signing key not set, signing is not possible")
+		return
+	}
+
+	key, found := c.keyset.LookupKeyID(c.signingKeyName)
+	if !found {
+		err = fmt.Errorf("key is not in the keyset")
+		return
+	}
+
+	now := c.clock.Now()
+
+	builder := &jwt.Builder{}
+	builder = builder.
+		Claim(jwt.IssuerKey, c.issuer).
+		Claim(jwt.IssuedAtKey, now)
+
+	if c.signingValidityPeriod > 0 {
+		builder = builder.Claim(jwt.ExpirationKey, now.Add(c.signingValidityPeriod))
+	}
+
+	t, err := builder.Build()
+	if err != nil {
+		return
+	}
+
+	for k, v := range claims {
+		if err = t.Set(k, v); err != nil {
+			return
+		}
+	}
+
+	signed, err = jwt.Sign(t, jwa.HS256, key)
+	return
 }
 
 // Validate will validate the intregrity a given JWT using the named Context's
 // validation configuration.  The issuer and start time are always
 // validated, and if the expiration time is present it will be
 // included.  A map containing all the claims will be returned.
-func Validate(purpose string, token string) (map[string]string, error) {
-	return map[string]string{}, fmt.Errorf("Not yet implemented")
+func Validate(purpose string, signed []byte) (claims map[string]string, err error) {
+	initOnce()
+	c, found := findContext(purpose)
+	if !found {
+		err = fmt.Errorf("context not found in registry")
+		return
+	}
+
+	t, err := jwt.Parse(
+		signed,
+		jwt.WithValidate(true),
+		jwt.WithIssuer(c.issuer),
+		jwt.WithKeySet(c.keyset),
+	)
+	if err != nil {
+		return
+	}
+
+	for k, v := range t.PrivateClaims() {
+		claims[k] = fmt.Sprintf("%v", v)
+	}
+	return
 }
 
 // WithKeyset specifies the keyset (named keys) to be used for signing or
 // validating.  This keyset is used as a list of possible keys to validate
 // JWTs, as well as selecting which named key to use when signing.
-func WithKeyset(keyset *jwk.Set) Option {
+func WithKeyset(keyset jwk.Set) Option {
 	return func(jr *Context) {
 		jr.keyset = keyset
 	}
