@@ -25,6 +25,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -123,20 +124,6 @@ func TestRegister(t *testing.T) {
 				signingValidityPeriod: 1 * time.Hour,
 			},
 		},
-		{
-			"WithClock works",
-			args{
-				"foo",
-				"flame",
-				[]Option{WithClock(&TimeClock{9999})},
-			},
-			"",
-			&Context{
-				purpose: "foo",
-				issuer:  "flame",
-				clock:   &TimeClock{9999},
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -147,7 +134,6 @@ func TestRegister(t *testing.T) {
 			}
 			require.NoError(t, err)
 			c, found := findContext(tt.args.purpose)
-			log.Printf("%v %v", found, c)
 			require.True(t, found, "could not find context")
 			assert.Equal(t, tt.want, c)
 		})
@@ -167,7 +153,7 @@ func TestDelete(t *testing.T) {
 	require.Nil(t, c)
 }
 
-func TestSign(t *testing.T) {
+func setupKeys(t *testing.T) {
 	key1, err := jwk.New([]byte("abcd1234"))
 	require.NoError(t, err)
 	err = key1.Set(jwk.KeyIDKey, "key1")
@@ -179,8 +165,6 @@ func TestSign(t *testing.T) {
 	added := keyset.Add(key1)
 	require.True(t, added)
 
-	clock := &TimeClock{1111}
-
 	Clear()
 	err = Register("noKeyset", "flame", WithSigningKeyName("key1"))
 	require.NoError(t, err)
@@ -188,11 +172,14 @@ func TestSign(t *testing.T) {
 	require.NoError(t, err)
 	err = Register("wrongKeyName", "flame", WithKeyset(keyset), WithSigningKeyName("notthere"))
 	require.NoError(t, err)
-	err = Register("noExpiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"), WithClock(clock))
+	err = Register("noExpiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"))
 	require.NoError(t, err)
-	err = Register("expiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"), WithSigningValidityPeriod(1*time.Minute), WithClock(clock))
+	err = Register("expiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"), WithSigningValidityPeriod(1*time.Minute))
 	require.NoError(t, err)
+}
 
+func TestSign(t *testing.T) {
+	setupKeys(t)
 	type args struct {
 		purpose string
 		claims  map[string]string
@@ -269,7 +256,8 @@ func TestSign(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotSigned, err := Sign(tt.args.purpose, tt.args.claims)
+			gotSigned, err := Sign(tt.args.purpose, tt.args.claims, &TimeClock{1111})
+			log.Printf("%s %s", tt.name, string(gotSigned))
 			if len(tt.wantErrString) != 0 {
 				require.EqualError(t, err, tt.wantErrString)
 				return
@@ -279,6 +267,97 @@ func TestSign(t *testing.T) {
 			parts := strings.Split(string(gotSigned), ".")
 			claims, err := base64.RawStdEncoding.DecodeString(parts[1])
 			assert.JSONEq(t, tt.wantClaims, string(claims))
+		})
+	}
+}
+
+func TestValidate(t *testing.T) {
+	setupKeys(t)
+	type args struct {
+		purpose string
+		signed  []byte
+	}
+	tests := []struct {
+		name          string
+		args          args
+		clock         jwt.Clock
+		wantClaims    map[string]string
+		wantErrString string
+	}{
+		{
+			"noSuchContext",
+			args{
+				"noSuchContext",
+				[]byte{},
+			},
+			&TimeClock{1111},
+			nil,
+			"context not found in registry",
+		},
+		{
+			"noKeyset",
+			args{
+				"noKeyset",
+				[]byte{},
+			},
+			&TimeClock{1111},
+			nil,
+			"keyset is empty",
+		},
+		{
+			"noExpiry used after start",
+			args{
+				"noExpiry",
+				// signed at 1111 time
+				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.rIapXyq6R2DEtFr10_lfGLXamU0Jn7yfHRgAtkOsD84"),
+			},
+			&TimeClock{2222},
+			map[string]string{},
+			"",
+		},
+		{
+			"noExpiry used before",
+			args{
+				"noExpiry",
+				// signed at 1111 time
+				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.rIapXyq6R2DEtFr10_lfGLXamU0Jn7yfHRgAtkOsD84"),
+			},
+			&TimeClock{50},
+			nil,
+			"iat not satisfied",
+		},
+		{
+			"expiry used after expired",
+			args{
+				"expiry",
+				// signed at 1111 time
+				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjExNzEsImlhdCI6MTExMSwiaXNzIjoiZmxhbWUifQ.I8DapiMGKPWi84R_6BhvJYRJVouFtv5Mb0cvgjRIwe4"),
+			},
+			&TimeClock{10000},
+			nil,
+			"exp not satisfied",
+		},
+		{
+			"custom claims",
+			args{
+				"noExpiry",
+				// signed at 1111 time
+				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJmb28iOiJiYXIiLCJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.MbasnICK6iYP62cO3XjOgOp7Jagayv-HhPjamueCjzk"),
+			},
+			&TimeClock{2222},
+			map[string]string{"foo": "bar"},
+			"",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotClaims, err := Validate(tt.args.purpose, tt.args.signed, tt.clock)
+			if len(tt.wantErrString) != 0 {
+				require.EqualError(t, err, tt.wantErrString)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, gotClaims, tt.wantClaims)
 		})
 	}
 }

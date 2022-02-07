@@ -119,7 +119,7 @@ func Clear() {
 // expirtation ("exp") will also be added to the claims.
 //
 // Additional claims provided will also be added prior to signing.
-func Sign(purpose string, claims map[string]string) (signed []byte, err error) {
+func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []byte, err error) {
 	initOnce()
 	c, found := findContext(purpose)
 	if !found {
@@ -143,7 +143,12 @@ func Sign(purpose string, claims map[string]string) (signed []byte, err error) {
 		return
 	}
 
-	now := c.clock.Now()
+	var now time.Time
+	if clock != nil {
+		now = clock.Now()
+	} else {
+		now = time.Now()
+	}
 
 	builder := &jwt.Builder{}
 	builder = builder.
@@ -173,7 +178,7 @@ func Sign(purpose string, claims map[string]string) (signed []byte, err error) {
 // validation configuration.  The issuer and start time are always
 // validated, and if the expiration time is present it will be
 // included.  A map containing all the claims will be returned.
-func Validate(purpose string, signed []byte) (claims map[string]string, err error) {
+func Validate(purpose string, signed []byte, clock jwt.Clock) (claims map[string]string, err error) {
 	initOnce()
 	c, found := findContext(purpose)
 	if !found {
@@ -186,16 +191,21 @@ func Validate(purpose string, signed []byte) (claims map[string]string, err erro
 		return
 	}
 
-	t, err := jwt.Parse(
-		signed,
+	opts := []jwt.ParseOption{
 		jwt.WithValidate(true),
 		jwt.WithIssuer(c.issuer),
 		jwt.WithKeySet(c.keyset),
-	)
+	}
+	if clock != nil {
+		opts = append(opts, jwt.WithClock(clock))
+	}
+
+	t, err := jwt.Parse(signed, opts...)
 	if err != nil {
 		return
 	}
 
+	claims = make(map[string]string)
 	for k, v := range t.PrivateClaims() {
 		claims[k] = fmt.Sprintf("%v", v)
 	}
@@ -226,14 +236,5 @@ func WithSigningKeyName(name string) Option {
 func WithSigningValidityPeriod(d time.Duration) Option {
 	return func(jr *Context) {
 		jr.signingValidityPeriod = d
-	}
-}
-
-// WithClock sets the clock to be used when signing and validating.
-// This is mosly useful in test cases.  If not provided, the current
-// time will be used.
-func WithClock(clock jwt.Clock) Option {
-	return func(jr *Context) {
-		jr.clock = clock
 	}
 }
