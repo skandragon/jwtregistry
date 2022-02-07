@@ -266,6 +266,7 @@ func TestSign(t *testing.T) {
 			// check that the claims are as we expect
 			parts := strings.Split(string(gotSigned), ".")
 			claims, err := base64.RawStdEncoding.DecodeString(parts[1])
+			require.NoError(t, err)
 			assert.JSONEq(t, tt.wantClaims, string(claims))
 		})
 	}

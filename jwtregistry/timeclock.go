@@ -19,7 +19,7 @@ package jwtregistry
 import "time"
 
 // TimeClock implements the jwt.Clock interface, allowing control over
-// the intrepretation of 'current time' used during validating and signing.
+// the interpretation of 'current time' used during validating and signing.
 // If NowTime is let unset (0), time.Now() return value will be used.
 // Unix time (in seconds).
 //
