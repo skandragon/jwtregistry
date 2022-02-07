@@ -20,19 +20,13 @@ import "time"
 
 // TimeClock implements the jwt.Clock interface, allowing control over
 // the interpretation of 'current time' used during validating and signing.
-// If NowTime is let unset (0), time.Now() return value will be used.
-// Unix time (in seconds).
 //
 // This is included to help test expiration and use before inception.
 type TimeClock struct {
 	NowTime int64
 }
 
-// Now returns either the specific time used at context creation, or
-// time.Now().
+// Now returns the point in time stored in NowTime.
 func (tc *TimeClock) Now() time.Time {
-	if tc.NowTime != 0 {
-		return time.Unix(tc.NowTime, 0)
-	}
-	return time.Now()
+	return time.Unix(tc.NowTime, 0)
 }

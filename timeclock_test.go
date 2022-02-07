@@ -19,11 +19,9 @@ package jwtregistry
 import (
 	"testing"
 	"time"
-)
 
-func timeEqualsEpislion(want time.Time, got time.Time, fudge time.Duration) bool {
-	return got.Unix() >= want.Add(-fudge).Unix() && got.Unix() <= want.Add(fudge).Unix()
-}
+	"github.com/stretchr/testify/assert"
+)
 
 func TestTimeClock_Now(t *testing.T) {
 	type fields struct {
@@ -37,7 +35,7 @@ func TestTimeClock_Now(t *testing.T) {
 		{
 			"default",
 			fields{},
-			time.Now(),
+			time.Unix(0, 0),
 		},
 		{
 			"locked clock to 50",
@@ -51,9 +49,7 @@ func TestTimeClock_Now(t *testing.T) {
 				NowTime: tt.fields.NowTime,
 			}
 			got := tc.Now()
-			if !timeEqualsEpislion(tt.want, got, 1*time.Second) {
-				t.Errorf("TimeClock.Now() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
