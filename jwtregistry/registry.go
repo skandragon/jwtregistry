@@ -103,6 +103,13 @@ func Delete(purpose string) {
 	delete(registry, purpose)
 }
 
+// Clear will erase all entries from the registry.
+func Clear() {
+	for k := range registry {
+		delete(registry, k)
+	}
+}
+
 // Sign will create a new JWT based on the map of input data,
 // the Context's configuration, and current signing key.  If the
 // signing key name is not set, an error will be returned.
@@ -121,7 +128,12 @@ func Sign(purpose string, claims map[string]string) (signed []byte, err error) {
 	}
 
 	if len(c.signingKeyName) == 0 {
-		err = fmt.Errorf("signing key not set, signing is not possible")
+		err = fmt.Errorf("signing key not set")
+		return
+	}
+
+	if c.keyset == nil || c.keyset.Len() == 0 {
+		err = fmt.Errorf("keyset is empty")
 		return
 	}
 
@@ -166,6 +178,11 @@ func Validate(purpose string, signed []byte) (claims map[string]string, err erro
 	c, found := findContext(purpose)
 	if !found {
 		err = fmt.Errorf("context not found in registry")
+		return
+	}
+
+	if c.keyset == nil || c.keyset.Len() == 0 {
+		err = fmt.Errorf("keyset is empty")
 		return
 	}
 

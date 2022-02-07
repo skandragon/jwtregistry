@@ -17,8 +17,9 @@
 package jwtregistry
 
 import (
+	"encoding/base64"
 	"log"
-	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -142,13 +143,13 @@ func TestRegister(t *testing.T) {
 			err := Register(tt.args.purpose, tt.args.issuer, tt.args.opts...)
 			if tt.wantErrorMsg != "" {
 				require.EqualError(t, err, tt.wantErrorMsg)
-			} else {
-				require.NoError(t, err)
-				c, found := findContext(tt.args.purpose)
-				log.Printf("%v %v", found, c)
-				require.True(t, found, "could not find context")
-				assert.Equal(t, tt.want, c)
+				return
 			}
+			require.NoError(t, err)
+			c, found := findContext(tt.args.purpose)
+			log.Printf("%v %v", found, c)
+			require.True(t, found, "could not find context")
+			assert.Equal(t, tt.want, c)
 		})
 	}
 }
@@ -178,28 +179,106 @@ func TestSign(t *testing.T) {
 	added := keyset.Add(key1)
 	require.True(t, added)
 
+	clock := &TimeClock{1111}
+
+	Clear()
+	err = Register("noKeyset", "flame", WithSigningKeyName("key1"))
+	require.NoError(t, err)
+	err = Register("noSigningKeyNameSet", "flame", WithKeyset(keyset))
+	require.NoError(t, err)
+	err = Register("wrongKeyName", "flame", WithKeyset(keyset), WithSigningKeyName("notthere"))
+	require.NoError(t, err)
+	err = Register("noExpiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"), WithClock(clock))
+	require.NoError(t, err)
+	err = Register("expiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"), WithSigningValidityPeriod(1*time.Minute), WithClock(clock))
+	require.NoError(t, err)
+
 	type args struct {
 		purpose string
 		claims  map[string]string
 	}
 	tests := []struct {
-		name       string
-		args       args
-		wantSigned []byte
-		wantErr    bool
+		name          string
+		args          args
+		wantClaims    string
+		wantErrString string
 	}{
-		// TODO: Add test cases.
+		{
+			"noSuchContext",
+			args{
+				"noSuchContext",
+				map[string]string{},
+			},
+			"",
+			"context not found in registry",
+		},
+		{
+			"noKeyset",
+			args{
+				"noKeyset",
+				map[string]string{},
+			},
+			"",
+			"keyset is empty",
+		},
+		{
+			"wrongKeyName",
+			args{
+				"wrongKeyName",
+				map[string]string{},
+			},
+			"",
+			"key is not in the keyset",
+		},
+		{
+			"noSigningKeyNameSet",
+			args{
+				"noSigningKeyNameSet",
+				map[string]string{},
+			},
+			"",
+			"signing key not set",
+		},
+		{
+			"noExpiry",
+			args{
+				"noExpiry",
+				map[string]string{},
+			},
+			`{"iat": 1111,"iss":"flame"}`,
+			"",
+		},
+		{
+			"expiry",
+			args{
+				"expiry",
+				map[string]string{},
+			},
+			`{"iat": 1111,"exp": 1171, "iss":"flame"}`,
+			"",
+		},
+		{
+			"extraClaims",
+			args{
+				"noExpiry",
+				map[string]string{"foo": "bar"},
+			},
+			`{"iat": 1111,"iss":"flame","foo":"bar"}`,
+			"",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotSigned, err := Sign(tt.args.purpose, tt.args.claims)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Sign() error = %v, wantErr %v", err, tt.wantErr)
+			if len(tt.wantErrString) != 0 {
+				require.EqualError(t, err, tt.wantErrString)
 				return
 			}
-			if !reflect.DeepEqual(gotSigned, tt.wantSigned) {
-				t.Errorf("Sign() = %v, want %v", gotSigned, tt.wantSigned)
-			}
+			require.NoError(t, err)
+			// check that the claims are as we expect
+			parts := strings.Split(string(gotSigned), ".")
+			claims, err := base64.RawStdEncoding.DecodeString(parts[1])
+			assert.JSONEq(t, tt.wantClaims, string(claims))
 		})
 	}
 }
