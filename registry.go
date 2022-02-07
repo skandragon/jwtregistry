@@ -41,10 +41,6 @@ type Context struct {
 	clock                 jwt.Clock
 }
 
-// Option specifies non-default overrides at
-// creation time.
-type Option func(*Context)
-
 var (
 	registry map[string]*Context
 	lock     sync.Mutex
@@ -210,31 +206,4 @@ func Validate(purpose string, signed []byte, clock jwt.Clock) (claims map[string
 		claims[k] = fmt.Sprintf("%v", v)
 	}
 	return
-}
-
-// WithKeyset specifies the keyset (named keys) to be used for signing or
-// validating.  This keyset is used as a list of possible keys to validate
-// JWTs, as well as selecting which named key to use when signing.
-func WithKeyset(keyset jwk.Set) Option {
-	return func(jr *Context) {
-		jr.keyset = keyset
-	}
-}
-
-// WithSigningKeyName selects a key from one of the keys passed into WithKeyset
-// to sign new requests.  If signing is not needed, setting this is not required.
-func WithSigningKeyName(name string) Option {
-	return func(jr *Context) {
-		jr.signingKeyName = name
-	}
-}
-
-// WithSigningValidityPeriod sets the time between the issued time and the
-// expiry time.  If set to 0, no expiration time is set when signing.
-// If a JWT has an expiration time, it will be validated regardless of this
-// duration.
-func WithSigningValidityPeriod(d time.Duration) Option {
-	return func(jr *Context) {
-		jr.signingValidityPeriod = d
-	}
 }
