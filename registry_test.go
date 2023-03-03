@@ -176,6 +176,8 @@ func setupKeys(t *testing.T) {
 	require.NoError(t, err)
 	err = Register("expiry", "flame", WithKeyset(keyset), WithSigningKeyName("key1"), WithSigningValidityPeriod(1*time.Minute))
 	require.NoError(t, err)
+	err = Register("wrongIssuer", "not-flame", WithKeyset(keyset), WithSigningKeyName("key1"))
+	require.NoError(t, err)
 }
 
 func TestSign(t *testing.T) {
@@ -350,6 +352,16 @@ func TestValidate(t *testing.T) {
 			&TimeClock{2222},
 			map[string]string{"foo": "bar"},
 			"",
+		},
+		{
+			"wrong issuer",
+			args{
+				"wrongIssuer",
+				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJmb28iOiJiYXIiLCJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.MbasnICK6iYP62cO3XjOgOp7Jagayv-HhPjamueCjzk"),
+			},
+			&TimeClock{2222},
+			map[string]string{},
+			`"iss" not satisfied: values do not match`,
 		},
 	}
 	for _, tt := range tests {
