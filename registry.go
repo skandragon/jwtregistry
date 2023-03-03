@@ -54,10 +54,8 @@ func findContext(name string) (c *Context, found bool) {
 	return
 }
 
-func initOnce() {
-	oncelock.Do(func() {
-		registry = make(map[string]*Context)
-	})
+func init() {
+	registry = make(map[string]*Context)
 }
 
 // Register creates a new Context, and stores it in the globally available
@@ -67,7 +65,6 @@ func initOnce() {
 // used in these Options should be treated as immutable, as they will
 // be accessed by multiple threads.
 func Register(purpose string, issuer string, opts ...Option) error {
-	initOnce()
 	if len(purpose) == 0 {
 		return fmt.Errorf("purpose must be provided")
 	}
@@ -123,7 +120,6 @@ func nowFromClock(clock jwt.Clock) time.Time {
 //
 // Additional claims provided will also be added prior to signing.
 func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []byte, err error) {
-	initOnce()
 	c, found := findContext(purpose)
 	if !found {
 		err = fmt.Errorf("context not found in registry")
@@ -175,7 +171,6 @@ func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []b
 // validated, and if the expiration time is present it will be
 // included.  A map containing all the claims will be returned.
 func Validate(purpose string, signed []byte, clock jwt.Clock) (claims map[string]string, err error) {
-	initOnce()
 	c, found := findContext(purpose)
 	if !found {
 		err = fmt.Errorf("context not found in registry")
