@@ -17,22 +17,43 @@
 package jwtregistry
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"log"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func GenerateSymmetricKey() []byte {
+	sharedKey := make([]byte, 64)
+	rand.Read(sharedKey)
+	return sharedKey
+}
+
+func GenerateSymmetricJwk() (jwk.Key, error) {
+	key, err := jwk.FromRaw(GenerateSymmetricKey())
+	if err != nil {
+		return nil, fmt.Errorf(`failed to generate jwk.SymmetricKey: %w`, err)
+	}
+
+	return key, nil
+}
+
 func TestRegister(t *testing.T) {
 	keyset := jwk.NewSet()
-	keyset.Add(jwk.NewSymmetricKey())
+	key, err := GenerateSymmetricJwk()
+	if err != nil {
+		log.Fatalf("cannot generate key: %v", err)
+	}
+	keyset.AddKey(key)
 
 	type args struct {
 		purpose string
@@ -154,7 +175,7 @@ func TestDelete(t *testing.T) {
 }
 
 func setupKeys(t *testing.T) {
-	key1, err := jwk.New([]byte("abcd1234"))
+	key1, err := jwk.FromRaw([]byte("abcd1234"))
 	require.NoError(t, err)
 	err = key1.Set(jwk.KeyIDKey, "key1")
 	require.NoError(t, err)
@@ -162,8 +183,8 @@ func setupKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	keyset := jwk.NewSet()
-	added := keyset.Add(key1)
-	require.True(t, added)
+	err = keyset.AddKey(key1)
+	require.NoError(t, err)
 
 	Clear()
 	err = Register("noKeyset", "flame", WithSigningKeyName("key1"))
@@ -329,7 +350,7 @@ func TestValidate(t *testing.T) {
 			},
 			&TimeClock{50},
 			nil,
-			"iat not satisfied",
+			`"iat" not satisfied`,
 		},
 		{
 			"expiry used after expired",
@@ -340,7 +361,7 @@ func TestValidate(t *testing.T) {
 			},
 			&TimeClock{10000},
 			nil,
-			"exp not satisfied",
+			`"exp" not satisfied`,
 		},
 		{
 			"custom claims",

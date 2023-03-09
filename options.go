@@ -19,7 +19,7 @@ package jwtregistry
 import (
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 // Option specifies non-default overrides at

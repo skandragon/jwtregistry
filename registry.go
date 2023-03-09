@@ -21,9 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 // Context holds a named JWT signer, validator, and other configuration
@@ -162,7 +161,7 @@ func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []b
 		}
 	}
 
-	signed, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key)
+	signed, err = jwt.Sign(t, jwt.WithKey(key.Algorithm(), key))
 	return
 }
 
