@@ -16,4 +16,4 @@ jobs:
           ref: ${{ github.ref_name }}
           persist-credentials: false
       - name: prod proxy
-        run: GOPROXY=proxy.golang.org go list -m github.com/${{ github.repository }}@${{ github.ref_name }}
+        run: GOPROXY=proxy.golang.org go list -m github.com/${{ github.repository }}/v2@${{ github.ref_name }}
