@@ -43,7 +43,6 @@ type Context struct {
 var (
 	registry map[string]*Context
 	lock     sync.Mutex
-	oncelock sync.Once
 )
 
 func findContext(name string) (c *Context, found bool) {
