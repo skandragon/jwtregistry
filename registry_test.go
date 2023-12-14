@@ -34,7 +34,13 @@ import (
 
 func GenerateSymmetricKey() []byte {
 	sharedKey := make([]byte, 64)
-	rand.Read(sharedKey)
+	n, err := rand.Read(sharedKey)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if n != len(sharedKey) {
+		log.Fatal("rand.Rand did not return the correct number of bytes")
+	}
 	return sharedKey
 }
 
@@ -53,7 +59,10 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		log.Fatalf("cannot generate key: %v", err)
 	}
-	keyset.AddKey(key)
+	err = keyset.AddKey(key)
+	if err != nil {
+		log.Fatalf("cannot add key: %v", err)
+	}
 
 	type args struct {
 		purpose string
