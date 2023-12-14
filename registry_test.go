@@ -206,7 +206,7 @@ func TestSign(t *testing.T) {
 	t.Parallel()
 	type args struct {
 		purpose string
-		claims  map[string]string
+		claims  map[string]interface{}
 	}
 	tests := []struct {
 		name          string
@@ -218,7 +218,7 @@ func TestSign(t *testing.T) {
 			"noSuchContext",
 			args{
 				"noSuchContext",
-				map[string]string{},
+				map[string]interface{}{},
 			},
 			"",
 			"context not found in registry",
@@ -227,7 +227,7 @@ func TestSign(t *testing.T) {
 			"noKeyset",
 			args{
 				"noKeyset",
-				map[string]string{},
+				map[string]interface{}{},
 			},
 			"",
 			"keyset is empty",
@@ -236,7 +236,7 @@ func TestSign(t *testing.T) {
 			"wrongKeyName",
 			args{
 				"wrongKeyName",
-				map[string]string{},
+				map[string]interface{}{},
 			},
 			"",
 			"key is not in the keyset",
@@ -245,7 +245,7 @@ func TestSign(t *testing.T) {
 			"noSigningKeyNameSet",
 			args{
 				"noSigningKeyNameSet",
-				map[string]string{},
+				map[string]interface{}{},
 			},
 			"",
 			"signing key not set",
@@ -254,7 +254,7 @@ func TestSign(t *testing.T) {
 			"noExpiry",
 			args{
 				"noExpiry",
-				map[string]string{},
+				map[string]interface{}{},
 			},
 			`{"iat": 1111,"iss":"flame"}`,
 			"",
@@ -263,7 +263,7 @@ func TestSign(t *testing.T) {
 			"expiry",
 			args{
 				"expiry",
-				map[string]string{},
+				map[string]interface{}{},
 			},
 			`{"iat": 1111,"exp": 1171, "iss":"flame"}`,
 			"",
@@ -272,7 +272,7 @@ func TestSign(t *testing.T) {
 			"extraClaims",
 			args{
 				"noExpiry",
-				map[string]string{"foo": "bar"},
+				map[string]interface{}{"foo": "bar"},
 			},
 			`{"iat": 1111,"iss":"flame","foo":"bar"}`,
 			"",
@@ -307,7 +307,7 @@ func TestValidate(t *testing.T) {
 		name          string
 		args          args
 		clock         jwt.Clock
-		wantClaims    map[string]string
+		wantClaims    map[string]interface{}
 		wantErrString string
 	}{
 		{
@@ -338,7 +338,7 @@ func TestValidate(t *testing.T) {
 				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.rIapXyq6R2DEtFr10_lfGLXamU0Jn7yfHRgAtkOsD84"),
 			},
 			&TimeClock{2222},
-			map[string]string{},
+			map[string]interface{}{},
 			"",
 		},
 		{
@@ -371,7 +371,7 @@ func TestValidate(t *testing.T) {
 				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJmb28iOiJiYXIiLCJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.MbasnICK6iYP62cO3XjOgOp7Jagayv-HhPjamueCjzk"),
 			},
 			&TimeClock{2222},
-			map[string]string{"foo": "bar"},
+			map[string]interface{}{"foo": "bar"},
 			"",
 		},
 		{
@@ -381,7 +381,7 @@ func TestValidate(t *testing.T) {
 				[]byte("eyJhbGciOiJIUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJmb28iOiJiYXIiLCJpYXQiOjExMTEsImlzcyI6ImZsYW1lIn0.MbasnICK6iYP62cO3XjOgOp7Jagayv-HhPjamueCjzk"),
 			},
 			&TimeClock{2222},
-			map[string]string{},
+			map[string]interface{}{},
 			`"iss" not satisfied: values do not match`,
 		},
 	}

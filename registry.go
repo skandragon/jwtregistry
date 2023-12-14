@@ -117,7 +117,7 @@ func nowFromClock(clock jwt.Clock) time.Time {
 // expirtation ("exp") will also be added to the claims.
 //
 // Additional claims provided will also be added prior to signing.
-func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []byte, err error) {
+func Sign(purpose string, claims map[string]interface{}, clock jwt.Clock) (signed []byte, err error) {
 	c, found := findContext(purpose)
 	if !found {
 		err = fmt.Errorf("context not found in registry")
@@ -168,7 +168,7 @@ func Sign(purpose string, claims map[string]string, clock jwt.Clock) (signed []b
 // validation configuration.  The issuer and start time are always
 // validated, and if the expiration time is present it will be
 // included.  A map containing all the claims will be returned.
-func Validate(purpose string, signed []byte, clock jwt.Clock) (claims map[string]string, err error) {
+func Validate(purpose string, signed []byte, clock jwt.Clock) (claims map[string]interface{}, err error) {
 	c, found := findContext(purpose)
 	if !found {
 		err = fmt.Errorf("context not found in registry")
@@ -194,9 +194,6 @@ func Validate(purpose string, signed []byte, clock jwt.Clock) (claims map[string
 		return
 	}
 
-	claims = make(map[string]string)
-	for k, v := range t.PrivateClaims() {
-		claims[k] = fmt.Sprintf("%v", v)
-	}
+	claims = t.PrivateClaims()
 	return
 }
