@@ -1,6 +1,6 @@
-module github.com/skandragon/jwtregistry/v2
+module github.com/skandragon/jwtregistry/v3
 
-go 1.20
+go 1.21
 
 require (
 	github.com/lestrrat-go/jwx/v2 v2.0.18
