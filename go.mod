@@ -3,7 +3,7 @@ module github.com/skandragon/jwtregistry/v3
 go 1.21
 
 require (
-	github.com/lestrrat-go/jwx/v2 v2.0.18
+	github.com/lestrrat-go/jwx/v2 v2.0.19
 	github.com/stretchr/testify v1.8.4
 )
 
